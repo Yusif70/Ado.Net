@@ -1,10 +1,11 @@
-﻿using Ado.Net.Exceptions.StudentExceptions;
+﻿using Ado.Net.Entities;
+using Ado.Net.Exceptions.StudentExceptions;
 using Ado.Net.Extensions;
 using System.Data.SqlClient;
 
 namespace Ado.Net.Services
 {
-	public class StudentService : IService
+	public class StudentService : IService<Student>
 	{
 		private readonly string connectionString = "Server=DESKTOP-MNIP7P0;Database=ExampleDB;Integrated Security = true";
 		public void Add(string? fullName)
@@ -15,8 +16,9 @@ namespace Ado.Net.Services
 			SqlCommand cmd = new(insertQuery, conn);
 			cmd.ExecuteCommand();
 		}
-		public void Update(int Id, string newFullName)
+		public void Update(int Id, string? newFullName)
 		{
+			GetById(Id);
 			SqlConnection conn = new(connectionString);
 			string updateStudentQuery = "update Students " +
 			$"set FullName = '{newFullName}' " +
@@ -26,14 +28,16 @@ namespace Ado.Net.Services
 		}
 		public void Remove(int Id)
 		{
+			GetById(Id);
 			SqlConnection conn = new(connectionString);
 			string removeStudentQuery = "delete Students " +
 			$"where Id = {Id}";
 			SqlCommand cmd = new(removeStudentQuery, conn);
 			cmd.ExecuteCommand();
 		}
-		public void GetAll()
+		public List<Student> GetAll()
 		{
+			List<Student> students = [];
 			SqlConnection conn = new(connectionString);
 			string getStudentsQuery = "select * from Students";
 			SqlCommand cmd = new(getStudentsQuery, conn);
@@ -43,7 +47,8 @@ namespace Ado.Net.Services
 			{
 				while (reader.Read())
 				{
-					Console.WriteLine($"{reader[0]}) {reader[1]} {(reader[2] != DBNull.Value ? $"oldugu qrup idsi:{reader[2]}" : "")}");
+					Student student = new((int)reader[0], (string)reader[1], reader[2] == DBNull.Value ? 0 : (int)reader[2]);
+					students.Add(student);
 				}
 				conn.Close();
 			}
@@ -51,6 +56,16 @@ namespace Ado.Net.Services
 			{
 				throw new NoStudentsException("sistemde telebe yoxdur");
 			}
+			return students;
+		}
+		public Student GetById(int Id)
+		{
+			Student? student = GetAll().Find(x => x.Id == Id);
+			if (student != null)
+			{
+				return student;
+			}
+			throw new StudentNotFoundException("telebe tapilmadi");
 		}
 		public void RemoveFromGroup(int groupId)
 		{
@@ -63,52 +78,42 @@ namespace Ado.Net.Services
 		}
 		public void AddToGroup()
 		{
-			SqlConnection conn = new(connectionString);
-			string query = "select max(s.Id), max(g.Id) from Students s " +
-				"full join Groups g " +
-				"on s.GroupId = g.Id";
-			SqlCommand cmd = new(query, conn);
-			conn.Open();
-			SqlDataReader reader = cmd.ExecuteReader();
-			while (reader.Read())
+			List<Student> students = GetAll();
+			GroupService groupService = new();
+			List<Group> groups = groupService.GetAll();
+			if (students.Count > 0 && groups.Count > 0)
 			{
-				if (reader[0] != DBNull.Value && reader[1] != DBNull.Value)
+				foreach (Student student1 in students)
 				{
-					GetAll();
-					Console.Write("telebe idsi: ");
-					int.TryParse(Console.ReadLine(), out int studentId);
-					SqlConnection conn2 = new(connectionString);
-					string getStudentQuery = "select * from Students " +
-						$"where Id = {studentId}";
-					SqlCommand cmd2 = new(getStudentQuery, conn2);
-					conn2.Open();
-					SqlDataReader reader2 = cmd2.ExecuteReader();
-					while (reader2.Read())
+					Console.WriteLine($"{student1.Id}) {student1.Name} {(student1.GroupId != 0 ? $"oldugu qrup idsi: {student1.GroupId}" : "")}");
+				}
+				Console.Write("telebe idsi: ");
+				int.TryParse(Console.ReadLine()?.Trim(), out int studentId);
+				Student student = GetById(studentId);
+				if (student.GroupId == 0)
+				{
+					foreach (Group group in groups)
 					{
-						if (reader2[2] == DBNull.Value)
-						{
-							GroupService groupService = new();
-							groupService.GetAll();
-							int.TryParse(Console.ReadLine(), out int groupId);
-							string addToGroupQuery = "update Students " +
-								$"set groupId = {groupId} " +
-								$"where Id = {studentId}";
-							cmd.CommandText = addToGroupQuery;
-							cmd.ExecuteCommand();
-						}
-						else
-						{
-							throw new StudentAlreadyInGroupException("telebe artiq qrupdadir");
-						}
+						Console.WriteLine($"{group.Id}){group.Name}");
 					}
-					conn2.Close();
+					Console.Write("qrup idsi: ");
+					int.TryParse(Console.ReadLine()?.Trim(), out int groupId);
+					string addToGroupQuery = "update Students " +
+						$"set groupId = {groupId} " +
+						$"where Id = {studentId}";
+					SqlConnection conn = new(connectionString);
+					SqlCommand cmd = new(addToGroupQuery, conn);
+					cmd.ExecuteCommand();
 				}
 				else
 				{
-					Console.WriteLine("Sistemde en azi 1 qrup ve telebe olmalidir");
+					throw new StudentAlreadyInGroupException("telebe artiq qrupdadir");
 				}
 			}
-			conn.Close();
+			else
+			{
+				Console.WriteLine("Sistemde en azi 1 qrup ve telebe olmalidir");
+			}
 		}
 	}
 }

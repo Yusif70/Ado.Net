@@ -1,8 +1,8 @@
-﻿using Ado.Net.Exceptions.GroupExceptions;
+﻿using Ado.Net.Entities;
+using Ado.Net.Exceptions.GroupExceptions;
 using Ado.Net.Exceptions.OperationExceptions;
 using Ado.Net.Exceptions.StudentExceptions;
 using Ado.Net.Services;
-using System.Data.SqlClient;
 
 namespace Ado.Net.Menu
 {
@@ -24,13 +24,12 @@ namespace Ado.Net.Menu
 					"\t0.Exit\n";
 		public static void MainMenu()
 		{
-			string connectionString = "Server=DESKTOP-MNIP7P0;Database=ExampleDB;Integrated Security = true";
 			bool loop = true;
 			while (loop)
 			{
 				Console.WriteLine(menu);
 				Console.Write("emeliyyat daxil edin: ");
-				int.TryParse(Console.ReadLine(), out int op);
+				int.TryParse(Console.ReadLine()?.Trim(), out int op);
 				try
 				{
 					switch (op)
@@ -38,7 +37,7 @@ namespace Ado.Net.Menu
 						case 1:
 							try
 							{
-								GroupMenu(connectionString);
+								GroupMenu();
 							}
 							catch (Exception ex)
 							{
@@ -48,7 +47,7 @@ namespace Ado.Net.Menu
 						case 2:
 							try
 							{
-								StudentMenu(connectionString);
+								StudentMenu();
 							}
 							catch (Exception ex)
 							{
@@ -68,7 +67,7 @@ namespace Ado.Net.Menu
 				}
 			}
 		}
-		private static void GroupMenu(string connectionString)
+		private static void GroupMenu()
 		{
 			GroupService groupService = new();
 			StudentService studentService = new();
@@ -77,7 +76,7 @@ namespace Ado.Net.Menu
 			{
 				Console.WriteLine(groupMenu);
 				Console.Write("emeliyyat daxil edin: ");
-				int.TryParse(Console.ReadLine(), out int op);
+				int.TryParse(Console.ReadLine()?.Trim(), out int op);
 				try
 				{
 					switch (op)
@@ -87,8 +86,8 @@ namespace Ado.Net.Menu
 							{
 								Console.WriteLine("legv etmek ucun bos qoyun");
 								Console.Write("qrup adi: ");
-								string? groupName = Console.ReadLine();
-								if (!string.IsNullOrEmpty(groupName?.Trim()))
+								string? groupName = Console.ReadLine()?.Trim();
+								if (!string.IsNullOrEmpty(groupName))
 								{
 									groupService.Add(groupName);
 								}
@@ -101,41 +100,21 @@ namespace Ado.Net.Menu
 						case 2:
 							try
 							{
-								SqlConnection conn = new(connectionString);
-								string getGroupsQuery = "select * from Groups";
-								SqlCommand cmd = new(getGroupsQuery, conn);
-								conn.Open();
-								SqlDataReader reader = cmd.ExecuteReader();
-								if (reader.HasRows)
+								List<Group> groups = groupService.GetAll();
+								foreach (Group group1 in groups)
 								{
-									while (reader.Read())
-									{
-										Console.WriteLine($"{reader[0]}) {reader[1]}");
-									}
-									conn.Close();
-									Console.Write("qrup idsi: ");
-									int.TryParse(Console.ReadLine(), out int groupId);
-									string getGroupQuery = "select * from Groups " +
-										$"where Id = {groupId}";
-									cmd.CommandText = getGroupQuery;
-									conn.Open();
-									reader = cmd.ExecuteReader();
-									if(reader.HasRows && reader.Read())
-									{
-										Console.WriteLine($"kohne ad: {reader[1]}");
-									}
-									conn.Close();
-									Console.WriteLine("legv etmek ucun bos qoyun");
-									Console.Write("yeni ad: ");
-									string? newName = Console.ReadLine();
-									if (!string.IsNullOrEmpty(newName?.Trim()))
-									{
-										groupService.Update(groupId, newName);
-									}
+									Console.WriteLine($"{group1.Id}) {group1.Name}");
 								}
-								else
+								Console.Write("qrup idsi: ");
+								int.TryParse(Console.ReadLine()?.Trim(), out int groupId);
+								Group group = groupService.GetById(groupId);
+								Console.WriteLine($"kohne ad: {group.Name}");
+								Console.WriteLine("legv etmek ucun bos qoyun");
+								Console.Write("yeni ad: ");
+								string? newName = Console.ReadLine()?.Trim();
+								if (!string.IsNullOrEmpty(newName))
 								{
-									Console.WriteLine("sistemde qrup yoxdur");
+									groupService.Update(groupId, newName);
 								}
 							}
 							catch (Exception ex)
@@ -146,27 +125,15 @@ namespace Ado.Net.Menu
 						case 3:
 							try
 							{
-								string getGroupsQuery = "select * from Groups";
-								SqlConnection conn = new(connectionString);
-								SqlCommand cmd = new(getGroupsQuery, conn);
-								conn.Open();
-								SqlDataReader reader = cmd.ExecuteReader();
-								if (reader.HasRows)
+								List<Group> groups = groupService.GetAll();
+								foreach (Group group in groups)
 								{
-									while (reader.Read())
-									{
-										Console.WriteLine($"{reader[0]}){reader[1]}");
-									}
-									conn.Close();
-									Console.Write("qrup idsi: ");
-									int.TryParse(Console.ReadLine(), out int groupId);
-									studentService.RemoveFromGroup(groupId);
-									groupService.Remove(groupId);
+									Console.WriteLine($"{group.Id}){group.Name}");
 								}
-								else
-								{
-									Console.WriteLine("sistemde qrup yoxdur");
-								}
+								Console.Write("qrup idsi: ");
+								int.TryParse(Console.ReadLine()?.Trim(), out int groupId);
+								studentService.RemoveFromGroup(groupId);
+								groupService.Remove(groupId);
 							}
 							catch (Exception ex)
 							{
@@ -176,7 +143,11 @@ namespace Ado.Net.Menu
 						case 4:
 							try
 							{
-								groupService.GetAll();
+								List<Group> groups = groupService.GetAll();
+								foreach (Group group in groups)
+								{
+									Console.WriteLine($"{group.Id}){group.Name}");
+								}
 							}
 							catch (NoGroupsExceptions ex)
 							{
@@ -196,7 +167,7 @@ namespace Ado.Net.Menu
 				}
 			}
 		}
-		private static void StudentMenu(string connectionString)
+		private static void StudentMenu()
 		{
 			StudentService studentService = new();
 			bool loop = true;
@@ -204,7 +175,7 @@ namespace Ado.Net.Menu
 			{
 				Console.WriteLine(studentMenu);
 				Console.Write("emeliyyat daxil edin: ");
-				int.TryParse(Console.ReadLine(), out int op);
+				int.TryParse(Console.ReadLine()?.Trim(), out int op);
 				try
 				{
 					switch (op)
@@ -213,7 +184,7 @@ namespace Ado.Net.Menu
 							try
 							{
 								Console.Write("ad soyad: ");
-								string? fullName = Console.ReadLine();
+								string? fullName = Console.ReadLine()?.Trim();
 								loop = false;
 								studentService.Add(fullName);
 							}
@@ -235,43 +206,22 @@ namespace Ado.Net.Menu
 						case 3:
 							try
 							{
-								SqlConnection conn = new(connectionString);
-								string getStudentsQuery = "select * from Students";
-								SqlCommand cmd = new(getStudentsQuery, conn);
-								conn.Open();
-								SqlDataReader reader = cmd.ExecuteReader();
-								if (reader.HasRows)
+								List<Student> students = studentService.GetAll();
+								foreach (Student student1 in students)
 								{
-									while (reader.Read())
-									{
-										Console.WriteLine($"{reader[0]}) {reader[1]}");
-									}
-									conn.Close();
-									Console.Write("telebe idsi: ");
-									int.TryParse(Console.ReadLine(), out int studentId);
-									string getGroupQuery = "select * from Students " +
-										$"where Id = {studentId}";
-									cmd.CommandText = getGroupQuery;
-									conn.Open();
-									reader = cmd.ExecuteReader();
-									if(reader.HasRows && reader.Read())
-									{
-										Console.WriteLine($"kohne ad soyad: {reader[1]}");
-									}
-									conn.Close();
-									Console.WriteLine("legv etmek ucun bos qoyun");
-									Console.Write("yeni ad ve soyad: ");
-									string? newFullName = Console.ReadLine();
-									if (!string.IsNullOrEmpty(newFullName?.Trim()))
-									{
-										studentService.Update(studentId, newFullName);
-									}
+									Console.WriteLine($"{student1.Id}) {student1.Name} {(student1.GroupId != 0 ? $"oldugu qrup idsi: {student1.GroupId}" : "")}");
 								}
-								else
+								Console.Write("telebe idsi: ");
+								int.TryParse(Console.ReadLine()?.Trim(), out int studentId);
+								Student student = studentService.GetById(studentId);
+								Console.WriteLine($"kohne ad soyad: {student.Name}");
+								Console.WriteLine("legv etmek ucun bos qoyun");
+								Console.Write("yeni ad ve soyad: ");
+								string? newFullName = Console.ReadLine()?.Trim();
+								if (!string.IsNullOrEmpty(newFullName))
 								{
-									Console.WriteLine("sistemde telebe yoxdur");
+									studentService.Update(studentId, newFullName);
 								}
-								conn.Close();
 							}
 							catch (Exception ex)
 							{
@@ -282,38 +232,28 @@ namespace Ado.Net.Menu
 						case 4:
 							try
 							{
-								SqlConnection conn = new(connectionString);
-								string getStudentsQuery = "select * from Students";
-								conn = new(connectionString);
-								SqlCommand cmd = new(getStudentsQuery, conn);
-								conn.Open();
-								SqlDataReader reader = cmd.ExecuteReader();
-								if (reader.HasRows)
+								List<Student> students = studentService.GetAll();
+								foreach (Student student in students)
 								{
-									while (reader.Read())
-									{
-										Console.WriteLine($"{reader[0]}) {reader[1]} {(reader[2] != DBNull.Value ? $"oldugu qrup idsi: {reader[2]}" : "")}");
-									}
-									conn.Close();
-									Console.Write("telebe idsi: ");
-									int.TryParse(Console.ReadLine(), out int studentId);
-									studentService.Remove(studentId);
+									Console.WriteLine($"{student.Id}) {student.Name} {(student.GroupId != 0 ? $"oldugu qrup idsi: {student.GroupId}" : "")}");
 								}
-								else
-								{
-									Console.WriteLine("sistemde telebe yoxdur");
-								}
+								Console.Write("telebe idsi: ");
+								int.TryParse(Console.ReadLine(), out int studentId);
+								studentService.Remove(studentId);
 							}
 							catch (Exception ex)
 							{
 								Console.WriteLine(ex.Message);
 							}
-
 							break;
 						case 5:
 							try
 							{
-								studentService.GetAll();
+								List<Student> students = studentService.GetAll();
+								foreach (Student student in students)
+								{
+									Console.WriteLine($"{student.Id}) {student.Name} {(student.GroupId != 0 ? $"oldugu qrup idsi:{student.GroupId}" : "")}");
+								}
 							}
 							catch (Exception ex)
 							{

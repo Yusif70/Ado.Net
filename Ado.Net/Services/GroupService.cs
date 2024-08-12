@@ -1,10 +1,11 @@
-﻿using Ado.Net.Exceptions.GroupExceptions;
+﻿using Ado.Net.Entities;
+using Ado.Net.Exceptions.GroupExceptions;
 using Ado.Net.Extensions;
 using System.Data.SqlClient;
 
 namespace Ado.Net.Services
 {
-	public class GroupService : IService
+	public class GroupService : IService<Group>
 	{
 		private readonly string connectionString = "Server=DESKTOP-MNIP7P0;Database=ExampleDB;Integrated Security = true";
 		public void Add(string name)
@@ -15,25 +16,28 @@ namespace Ado.Net.Services
 			SqlCommand cmd = new(insertGroupQuery, conn);
 			cmd.ExecuteCommand();
 		}
-		public void Update(int Id, string newName)
+		public void Update(int id, string newName)
 		{
+			GetById(id);
 			SqlConnection conn = new(connectionString);
 			string updateGroupQuery = "update Groups " +
 			$"set Name = '{newName}' " +
-			$"where Id = {Id}";
+			$"where Id = {id}";
 			SqlCommand cmd = new(updateGroupQuery, conn);
 			cmd.ExecuteCommand();
 		}
 		public void Remove(int id)
 		{
+			GetById(id);
 			SqlConnection conn = new(connectionString);
 			string removeGroupQuery = "delete Groups " +
 			$"where Id = {id}";
 			SqlCommand cmd = new(removeGroupQuery, conn);
 			cmd.ExecuteCommand();
 		}
-		public void GetAll()
+		public List<Group> GetAll()
 		{
+			List<Group> groups = [];
 			SqlConnection conn = new(connectionString);
 			string getGroupsQuery = "select * from Groups";
 			SqlCommand cmd = new(getGroupsQuery, conn);
@@ -43,7 +47,8 @@ namespace Ado.Net.Services
 			{
 				while (reader.Read())
 				{
-					Console.WriteLine($"{reader[0]}){reader[1]}");
+					Group group = new((int)reader[0], (string)reader[1]);
+					groups.Add(group);
 				}
 				conn.Close();
 			}
@@ -51,6 +56,16 @@ namespace Ado.Net.Services
 			{
 				throw new NoGroupsExceptions("sistemde qrup yoxdur");
 			}
+			return groups;
+		}
+		public Group GetById(int id)
+		{
+			Group? group = GetAll().Find(x => x.Id == id);
+			if(group != null)
+			{
+				return group;
+			}
+			throw new GroupNotFoundException("qrup tapilmadi");
 		}
 	}
 }
